@@ -73,15 +73,19 @@ body {
 
 /* Utility classes */
 .badge {
-  @apply inline-block px-3 py-1 text-sm font-semibold rounded-full;
+  @apply inline-block px-2.5 py-1 text-xs font-medium rounded-full;
 }
 
 .btn {
-  @apply px-6 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95;
+  @apply px-4 py-2 text-sm rounded-lg font-medium transition-all duration-300 transform hover:scale-105 active:scale-95;
 }
 
 .btn-primary {
   @apply btn bg-gradient-to-r from-primary to-secondary text-white hover:shadow-lg;
+}
+
+.btn-primary-sm {
+  @apply inline-flex items-center justify-center px-3 py-1.5 text-xs rounded-md font-medium bg-gradient-to-r from-primary to-secondary text-white transition-all duration-300 hover:shadow-md;
 }
 
 .card {

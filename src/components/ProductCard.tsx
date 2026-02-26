@@ -2,93 +2,76 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
+import type { Product } from "@/types";
 
-interface ProductCardProps {
-  id: number;
-  name: string;
-  description: string;
-  regularPrice: number;
-  offerPrice: number;
-  image: string;
-  rating: number;
-  reviews: number;
-}
+type ProductCardProps = {
+  product: Product;
+};
 
-export default function ProductCard({
-  id,
-  name,
-  description,
-  regularPrice,
-  offerPrice,
-  image,
-  rating,
-  reviews,
-}: ProductCardProps) {
-  const discount = Math.round(((regularPrice - offerPrice) / regularPrice) * 100);
+const getFinalPrice = (product: Product) => {
+  if (!product.discountType || !product.discountValue) return product.price;
+  if (product.discountType === "percentage") {
+    return Number((product.price - (product.price * product.discountValue) / 100).toFixed(2));
+  }
+  return Math.max(0, Number((product.price - product.discountValue).toFixed(2)));
+};
+
+export default function ProductCard({ product }: ProductCardProps) {
+  const [loading, setLoading] = useState(false);
+  const finalPrice = getFinalPrice(product);
+  const discountAmount = Number((product.price - finalPrice).toFixed(2));
+
+  const addToCart = async () => {
+    setLoading(true);
+    try {
+      await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, quantity: 1 }),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Link href={`/product/${id}`}>
-      <div className="card bg-white cursor-pointer group overflow-hidden h-full">
-        {/* Image Container */}
-        <div className="relative w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-          <Image
-            src={image}
-            alt={name}
-            fill
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-          {/* Discount Badge */}
-          <div className="absolute top-4 right-4 bg-gradient-to-r from-primary to-secondary text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-            -{discount}%
-          </div>
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+    <div className="card bg-white overflow-hidden border border-emerald-100">
+      <Link href={`/product/${product.id}`} className="block relative w-full h-52 bg-emerald-50 overflow-hidden">
+        <Image src={product.image} alt={product.name} fill className="object-cover" />
+      </Link>
+
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="badge bg-emerald-100 text-emerald-800">{product.category}</span>
+          {product.flags.trending && <span className="badge bg-yellow-100 text-yellow-700">Trending</span>}
         </div>
 
-        {/* Content */}
-        <div className="p-5">
-          {/* Category Badge */}
-          <div className="mb-2">
-            <span className="inline-block px-2 py-1 bg-accent bg-opacity-20 text-accent font-semibold text-xs rounded-full">
-              Special Offer
-            </span>
-          </div>
+        <Link href={`/product/${product.id}`} className="text-base font-semibold text-gray-900 hover:text-primary transition-colors">
+          {product.name}
+        </Link>
 
-          {/* Title */}
-          <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-primary transition">
-            {name}
-          </h3>
+        <div className="mt-2 mb-3">
+          <p className="text-lg font-bold text-primary">${finalPrice.toFixed(2)}</p>
+          {discountAmount > 0 && (
+            <p className="text-sm text-gray-500">
+              <span className="line-through mr-2">${product.price.toFixed(2)}</span>
+              Save ${discountAmount.toFixed(2)}
+            </p>
+          )}
+        </div>
 
-          {/* Description */}
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-            {description}
-          </p>
-
-          {/* Rating */}
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <span
-                  key={i}
-                  className={`text-lg ${i < Math.floor(rating) ? "text-yellow-400" : "text-gray-300"}`}
-                >
-                  ★
-                </span>
-              ))}
-            </div>
-            <span className="text-sm text-gray-600">({reviews} reviews)</span>
-          </div>
-
-          {/* Price Section */}
-          <div className="mb-4 flex items-center gap-3">
-            <span className="text-2xl font-bold text-primary">${offerPrice.toFixed(2)}</span>
-            <span className="text-lg text-gray-500 line-through">${regularPrice.toFixed(2)}</span>
-          </div>
-
-          {/* CTA Button */}
-          <button className="w-full btn-primary text-sm font-bold group-hover:shadow-xl group-hover:from-primary group-hover:to-secondary">View Details</button>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-gray-500">Stock: {product.stock}</p>
+          <button
+            onClick={addToCart}
+            disabled={loading || product.stock <= 0}
+            className="btn-primary-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Adding..." : product.stock > 0 ? "Add to Cart" : "Out of Stock"}
+          </button>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

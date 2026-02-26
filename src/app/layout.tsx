@@ -7,8 +7,16 @@ import Footer from "@/components/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "NutriHeaven - Pure Nutrition Better Living",
-  description: "Direct from local farms. Premium organic vegetables, homemade products, and fresh groceries.",
+  title: "NutriHeaven | Scalable E-commerce",
+  description: "Next.js e-commerce with JWT auth, RBAC, product management, stock tracking, and order workflows.",
+  keywords: [
+    "Next.js e-commerce",
+    "JWT authentication",
+    "RBAC",
+    "stock tracking",
+    "admin orders",
+    "NutriHeaven",
+  ],
 };
 
 export default function RootLayout({

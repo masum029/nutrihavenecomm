@@ -1,0 +1,65 @@
+{
+  "categories": [
+    "Vegetables",
+    "Pantry",
+    "Dairy",
+    "Breakfast",
+    "Ramadan"
+  ],
+  "subcategories": [
+    {
+      "name": "Leafy & Fresh",
+      "category": "Vegetables"
+    },
+    {
+      "name": "Spreads",
+      "category": "Pantry"
+    },
+    {
+      "name": "Eggs",
+      "category": "Dairy"
+    },
+    {
+      "name": "Condiments",
+      "category": "Pantry"
+    },
+    {
+      "name": "Granola & Cereals",
+      "category": "Breakfast"
+    },
+    {
+      "name": "Pasta",
+      "category": "Pantry"
+    },
+    {
+      "name": "Milk Alternatives",
+      "category": "Dairy"
+    },
+    {
+      "name": "Dates",
+      "category": "Ramadan"
+    },
+    {
+      "name": "Seeds",
+      "category": "Breakfast"
+    },
+    {
+      "name": "Oils",
+      "category": "Pantry"
+    },
+    {
+      "name": "Pulses",
+      "category": "Ramadan"
+    }
+  ],
+  "brands": [
+    "FarmPure",
+    "NutriHeaven Homemade",
+    "GreenNest",
+    "BeeWell",
+    "PureSip",
+    "Barakah Foods",
+    "SuperGrain",
+    "Mediterra"
+  ]
+}
