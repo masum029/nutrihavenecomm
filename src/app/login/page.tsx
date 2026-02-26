@@ -40,7 +40,6 @@ export default function LoginPage() {
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button disabled={loading} className="btn-primary w-full disabled:opacity-50">{loading ? "Signing in..." : "Sign In"}</button>
       </form>
-      <p className="mt-4 text-sm text-gray-600">Demo admin: admin@nutriheaven.com / Admin@123</p>
     </div>
   );
 }

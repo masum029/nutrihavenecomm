@@ -142,6 +142,34 @@ export default function Home() {
     <div className="px-4 sm:px-6 lg:px-8 py-10 bg-gradient-to-b from-white to-emerald-50">
       <Slider />
 
+      <section className="max-w-7xl mx-auto mt-8 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          <div className="bg-emerald-50 border-2 border-emerald-600 rounded-xl p-6 text-center shadow-sm">
+            <p className="text-4xl mb-3">🌱</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">100% Organic</h3>
+            <p className="text-gray-700">Pure, natural ingredients sourced from trusted farms.</p>
+          </div>
+
+          <div className="bg-emerald-50 border-2 border-emerald-600 rounded-xl p-6 text-center shadow-sm">
+            <p className="text-4xl mb-3">🚚</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Fast Delivery</h3>
+            <p className="text-gray-700">Quick dispatch and reliable delivery to your doorstep.</p>
+          </div>
+
+          <div className="bg-emerald-50 border-2 border-emerald-600 rounded-xl p-6 text-center shadow-sm">
+            <p className="text-4xl mb-3">💰</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Best Prices</h3>
+            <p className="text-gray-700">Great value deals with smart discounts on top products.</p>
+          </div>
+
+          <div className="bg-emerald-50 border-2 border-emerald-600 rounded-xl p-6 text-center shadow-sm">
+            <p className="text-4xl mb-3">✅</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Quality Assured</h3>
+            <p className="text-gray-700">Carefully selected products with quality-first standards.</p>
+          </div>
+        </div>
+      </section>
+
       <section className="max-w-7xl mx-auto space-y-12">
         {categories.map((category) => {
           const categoryProducts = filteredProducts.filter((item) => item.category === category);
