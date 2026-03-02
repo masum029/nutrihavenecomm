@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { Role } from "@/types";
 
 type SessionUser = {
   id: string;
   name: string;
-  role: "admin" | "customer";
+  role: Role;
 };
 
 type CartLine = {
@@ -68,6 +69,8 @@ export default function Navbar() {
   };
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const isAdminRole = user ? ["super-admin", "admin", "manager"].includes(user.role) : false;
+  const isCustomerRole = user ? ["user", "customer"].includes(user.role) : false;
 
   const openCart = async () => {
     setIsCartOpen(true);
@@ -119,16 +122,18 @@ export default function Navbar() {
             <Link href="/" className="text-gray-700 hover:text-primary transition-colors font-medium">Home</Link>
             <Link href="/products" className="text-gray-700 hover:text-primary transition-colors font-medium">Products</Link>
 
-            {user?.role === "customer" && (
+            {isCustomerRole && (
               <>
                 <Link href="/orders" className="text-gray-700 hover:text-primary transition-colors font-medium">My Orders</Link>
+                <Link href="/profile" className="text-gray-700 hover:text-primary transition-colors font-medium">Profile</Link>
               </>
             )}
 
-            {user?.role === "admin" && (
+            {isAdminRole && (
               <>
                 <Link href="/orders" className="text-gray-700 hover:text-primary transition-colors font-medium">All Orders</Link>
                 <Link href="/admin" className="text-gray-700 hover:text-primary transition-colors font-medium">Admin</Link>
+                <Link href="/profile" className="text-gray-700 hover:text-primary transition-colors font-medium">Profile</Link>
               </>
             )}
 
@@ -203,16 +208,18 @@ export default function Navbar() {
             <Link href="/" className="block py-2 text-gray-700 hover:text-primary">Home</Link>
             <Link href="/products" className="block py-2 text-gray-700 hover:text-primary">Products</Link>
 
-            {user?.role === "customer" && (
+            {isCustomerRole && (
               <>
                 <Link href="/orders" className="block py-2 text-gray-700 hover:text-primary">My Orders</Link>
+                <Link href="/profile" className="block py-2 text-gray-700 hover:text-primary">Profile</Link>
               </>
             )}
 
-            {user?.role === "admin" && (
+            {isAdminRole && (
               <>
                 <Link href="/orders" className="block py-2 text-gray-700 hover:text-primary">All Orders</Link>
                 <Link href="/admin" className="block py-2 text-gray-700 hover:text-primary">Admin</Link>
+                <Link href="/profile" className="block py-2 text-gray-700 hover:text-primary">Profile</Link>
               </>
             )}
 

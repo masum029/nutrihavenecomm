@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
   if (!user || user.passwordHash !== hashPassword(parsed.data.password)) {
     return fail("Invalid email or password.", 401);
   }
+  if (user.isActive === false) {
+    return fail("Your account is deactivated. Please contact admin.", 403);
+  }
 
   const token = createToken({ sub: user.id, role: user.role, email: user.email });
   const response = ok({ id: user.id, name: user.name, email: user.email, role: user.role });

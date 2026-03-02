@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { Role } from "@/types";
 
 type SessionUser = {
   id: string;
-  role: "admin" | "customer";
+  role: Role;
 };
 
 type CartItem = {
@@ -44,7 +45,35 @@ export default function CartPage() {
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+
+    const loadInitial = async () => {
+      const sessionResponse = await fetch("/api/auth/me");
+      const sessionData = await sessionResponse.json();
+      const currentUser = sessionData.data?.user ?? null;
+      if (!active) return;
+      setUser(currentUser);
+
+      if (!currentUser) {
+        setItems([]);
+        setSubTotal(0);
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("/api/cart");
+      const data = await response.json();
+      if (!active) return;
+      setItems(data.data.items ?? []);
+      setSubTotal(data.data.subTotal ?? 0);
+      setLoading(false);
+    };
+
+    void loadInitial();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const updateQty = async (productId: string, quantity: number) => {

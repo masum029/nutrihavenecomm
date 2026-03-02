@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useEffect } from "react";
+import type { Role } from "@/types";
 
 type SessionUser = {
   id: string;
-  role: "admin" | "customer";
+  role: Role;
 };
 
 export default function CheckoutPage() {

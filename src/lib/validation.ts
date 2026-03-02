@@ -6,7 +6,7 @@ export type ValidationResult<T> =
   | { ok: false; message: string };
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-const isMobile = (value: string) => /^[0-9+\-\s]{8,20}$/.test(value.trim());
+const isMobile = (value: string) => /^[0-9+()\-\s]{7,20}$/.test(value.trim());
 
 export const validateRegister = (input: Record<string, unknown>): ValidationResult<{
   name: string;

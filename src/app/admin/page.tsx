@@ -13,6 +13,10 @@ export default function AdminPage() {
           <h2 className="text-xl font-bold mb-2">Order Management</h2>
           <p className="text-gray-600">Review orders and update status workflow.</p>
         </Link>
+        <Link href="/admin/users" className="card bg-white p-6 border border-emerald-100 sm:col-span-2">
+          <h2 className="text-xl font-bold mb-2">User Management</h2>
+          <p className="text-gray-600">Create role-based users (Super Admin, Admin, Manager, User) from admin panel.</p>
+        </Link>
       </div>
     </div>
   );

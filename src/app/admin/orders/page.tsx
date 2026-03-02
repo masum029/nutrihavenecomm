@@ -21,7 +21,20 @@ export default function AdminOrdersPage() {
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+
+    const loadInitial = async () => {
+      const response = await fetch("/api/orders");
+      const data = await response.json();
+      if (!active) return;
+      setOrders(data.data.items ?? []);
+    };
+
+    void loadInitial();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const updateStatus = async (id: string, status: string) => {

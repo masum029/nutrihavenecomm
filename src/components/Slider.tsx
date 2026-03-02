@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { SliderImage } from '@/types';
+import type { Role } from '@/types';
 
 type SessionPayload = {
   data?: {
-    user?: { role?: 'admin' | 'customer' };
+    user?: { role?: Role };
   };
 };
 
@@ -28,12 +29,30 @@ export default function Slider() {
   };
 
   useEffect(() => {
-    loadItems();
+    let active = true;
 
-    fetch('/api/auth/me')
-      .then((response) => response.json())
-      .then((session: SessionPayload) => setIsAdmin(session.data?.user?.role === 'admin'))
-      .catch(() => setIsAdmin(false));
+    const initialize = async () => {
+      const sliderResponse = await fetch('/api/slider-images');
+      const sliderData = await sliderResponse.json();
+      if (!active) return;
+      setItems(sliderData.data?.items ?? []);
+
+      try {
+        const sessionResponse = await fetch('/api/auth/me');
+        const session = (await sessionResponse.json()) as SessionPayload;
+        if (!active) return;
+        setIsAdmin(["super-admin", "admin", "manager"].includes(session.data?.user?.role ?? ""));
+      } catch {
+        if (!active) return;
+        setIsAdmin(false);
+      }
+    };
+
+    void initialize();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -46,10 +65,6 @@ export default function Slider() {
 
     return () => clearInterval(timer);
   }, [isAutoplay, items.length]);
-
-  useEffect(() => {
-    if (currentSlide >= items.length) setCurrentSlide(0);
-  }, [currentSlide, items.length]);
 
   const uploadSlideImage = async (file: File) => {
     setUploadError('');
@@ -150,7 +165,8 @@ export default function Slider() {
     setTimeout(() => setIsAutoplay(true), 10000);
   };
 
-  const slide = items[currentSlide];
+  const safeCurrentSlide = items.length ? currentSlide % items.length : 0;
+  const slide = items[safeCurrentSlide];
 
   if (!slide) {
     return (
@@ -224,7 +240,7 @@ export default function Slider() {
           {items.map((item, index) => (
             <div
               key={item.id}
-              className={`absolute inset-0 transition-opacity duration-700 ${index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              className={`absolute inset-0 transition-opacity duration-700 ${index === safeCurrentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             >
               <Image
                 src={item.image}
@@ -260,7 +276,7 @@ export default function Slider() {
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
-                className={`transition-all duration-300 rounded-full ${index === currentSlide ? 'bg-white w-6 h-2' : 'bg-white/60 w-2 h-2'}`}
+                className={`transition-all duration-300 rounded-full ${index === safeCurrentSlide ? 'bg-white w-6 h-2' : 'bg-white/60 w-2 h-2'}`}
                 aria-label={`Go to slide ${index + 1}`}
               />
             ))}

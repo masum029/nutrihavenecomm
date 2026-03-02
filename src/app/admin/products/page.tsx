@@ -1,6 +1,7 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import NextImage from "next/image";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { Product, SectionAd } from "@/types";
 
 type TaxonomyStore = {
@@ -79,6 +80,7 @@ export default function AdminProductsPage() {
   const [compressionQuality, setCompressionQuality] = useState(0.8);
   const [maxDimension, setMaxDimension] = useState(1600);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [creatingProduct, setCreatingProduct] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -108,40 +110,40 @@ export default function AdminProductsPage() {
   const [sectionAdError, setSectionAdError] = useState("");
   const [sectionAdSaving, setSectionAdSaving] = useState(false);
 
-  const loadSectionAds = async () => {
+  const loadSectionAds = useCallback(async () => {
     const response = await fetch("/api/section-ads");
     const data = await response.json();
     setSectionAds(data.data?.items ?? []);
-  };
+  }, []);
 
-  const loadTaxonomies = async () => {
+  const loadTaxonomies = useCallback(async () => {
     const response = await fetch("/api/taxonomies");
     const data = await response.json();
     const next = data.data as TaxonomyStore;
     setTaxonomies(next);
 
-    if (!category && next.categories.length > 0) {
+    setCategory((prevCategory) => {
+      if (prevCategory || next.categories.length === 0) return prevCategory;
       const defaultCategory = next.categories[0];
-      setCategory(defaultCategory);
       const matchedSub = next.subcategories.find((item) => item.category === defaultCategory)?.name ?? "";
-      setSubcategory(matchedSub);
-    }
-    if (!brand && next.brands.length > 0) {
-      setBrand(next.brands[0]);
-    }
-  };
+      setSubcategory((prevSubcategory) => prevSubcategory || matchedSub);
+      return defaultCategory;
+    });
 
-  const load = async () => {
+    setBrand((prevBrand) => prevBrand || next.brands[0] || "");
+  }, []);
+
+  const load = useCallback(async () => {
     const response = await fetch("/api/products?limit=100");
     const data = await response.json();
     setProducts(data.data.items ?? []);
-  };
+  }, []);
 
   useEffect(() => {
     load();
     loadTaxonomies();
     loadSectionAds();
-  }, []);
+  }, [load, loadTaxonomies, loadSectionAds]);
 
   useEffect(() => {
     if (!sectionAdSection && taxonomies.categories.length > 0) {
@@ -169,9 +171,25 @@ export default function AdminProductsPage() {
     }
   }, [category, subcategory, taxonomies.subcategories]);
 
+  const readResponseMessage = async (response: Response, fallback: string) => {
+    try {
+      const data = (await response.json()) as { message?: string };
+      return data.message ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const createProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+
+    if (creatingProduct) return;
+
+    if (uploadingImage) {
+      setError("Please wait until image upload is complete.");
+      return;
+    }
 
     if (!imagePath) {
       setError("Please upload a product image first.");
@@ -199,22 +217,30 @@ export default function AdminProductsPage() {
       },
     };
 
-    const response = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    setCreatingProduct(true);
+    try {
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      const data = await response.json();
-      setError(data.message ?? "Failed to create product");
-      return;
+      if (!response.ok) {
+        setError(await readResponseMessage(response, "Failed to create product"));
+        return;
+      }
+
+      form.reset();
+      setImagePath("");
+      setUploadError("");
+      setUploadProgress(0);
+      setCompressionNote("");
+      await load();
+    } catch {
+      setError("Unable to create product right now. Please try again.");
+    } finally {
+      setCreatingProduct(false);
     }
-
-    form.reset();
-    setImagePath("");
-    setUploadError("");
-    await load();
   };
 
   const onImageSelect = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -222,6 +248,7 @@ export default function AdminProductsPage() {
     if (!file) return;
 
     await uploadImage(file);
+    event.target.value = "";
   };
 
   const compressImageOnClient = async (file: File) => {
@@ -363,7 +390,11 @@ export default function AdminProductsPage() {
     setUploadingImage(false);
     if (!result.ok) {
       const body = result.body as { message?: string };
-      setUploadError(body?.message ?? "Image upload failed.");
+      const defaultMessage =
+        result.status === 401 || result.status === 403
+          ? "Admin authorization required. Please login again."
+          : "Image upload failed.";
+      setUploadError(body?.message ?? defaultMessage);
       setUploadProgress(0);
       return;
     }
@@ -606,6 +637,13 @@ export default function AdminProductsPage() {
     });
   }, [products, searchName, searchCategory, searchBrand]);
 
+  const sectionEntryOptions = useMemo(() => {
+    const values = new Set<string>();
+    taxonomies.categories.forEach((item) => values.add(item));
+    sectionAds.forEach((item) => values.add(item.section));
+    return [...values];
+  }, [taxonomies.categories, sectionAds]);
+
   const onDeleteProduct = async (id: string) => {
     const confirmed = window.confirm("Delete this product?");
     if (!confirmed) return;
@@ -789,56 +827,11 @@ export default function AdminProductsPage() {
     <div className="max-w-7xl mx-auto px-4 py-10 space-y-8">
       <h1 className="text-3xl font-bold">Admin Product Management</h1>
 
-      <form onSubmit={createProduct} className="bg-white border border-emerald-100 rounded-xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <input name="name" required placeholder="Name" className="border rounded px-3 py-2" />
-
-        <div className="flex gap-2">
-          <select
-            value={brand}
-            onChange={(event) => setBrand(event.target.value)}
-            className="border rounded px-3 py-2 flex-1"
-            required
-          >
-            <option value="">Select Brand</option>
-            {taxonomies.brands.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-          <button type="button" className="btn bg-emerald-100 text-primary" onClick={() => openCreateModal("brand")}>+ Brand</button>
-        </div>
-
-        <div className="flex gap-2">
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="border rounded px-3 py-2 flex-1"
-            required
-          >
-            <option value="">Select Category</option>
-            {taxonomies.categories.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-          <button type="button" className="btn bg-emerald-100 text-primary" onClick={() => openCreateModal("category")}>+ Category</button>
-        </div>
-
-        <div className="flex gap-2">
-          <select
-            value={subcategory}
-            onChange={(event) => setSubcategory(event.target.value)}
-            className="border rounded px-3 py-2 flex-1"
-            required
-          >
-            <option value="">Select Subcategory</option>
-            {filteredSubcategories.map((item) => (
-              <option key={`${item.category}-${item.name}`} value={item.name}>{item.name}</option>
-            ))}
-          </select>
-          <button type="button" className="btn bg-emerald-100 text-primary" onClick={() => openCreateModal("subcategory")}>+ Subcategory</button>
-        </div>
-
+      <form onSubmit={createProduct} className="bg-white border border-emerald-100 rounded-xl p-5 space-y-4">
         <div className="sm:col-span-2 border rounded p-3">
-          <label className="block text-sm font-medium mb-2">Product Image Upload</label>
+          <p className="text-sm font-semibold mb-1">Step 1: Upload Product Image</p>
+          <p className="text-xs text-gray-500 mb-3">Minimum resolution: {MIN_IMAGE_WIDTH}x{MIN_IMAGE_HEIGHT}px</p>
+
           <div className="mb-3 p-3 border rounded bg-gray-50 space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium">
               <input
@@ -912,27 +905,87 @@ export default function AdminProductsPage() {
           {imagePath && (
             <div className="mt-3">
               <p className="text-xs text-gray-500 mb-2">Uploaded: {imagePath}</p>
-              <img src={imagePath} alt="Uploaded product" className="h-28 w-28 object-cover rounded border" />
+              <NextImage src={imagePath} alt="Uploaded product" width={112} height={112} className="h-28 w-28 object-cover rounded border" />
             </div>
           )}
         </div>
 
-        <input name="price" type="number" step="0.01" required placeholder="Price" className="border rounded px-3 py-2" />
-        <input name="stock" type="number" required placeholder="Stock" className="border rounded px-3 py-2" />
-        <select name="discountType" className="border rounded px-3 py-2">
-          <option value="">No discount</option>
-          <option value="percentage">Percentage</option>
-          <option value="fixed">Fixed</option>
-        </select>
-        <input name="discountValue" type="number" step="0.01" placeholder="Discount value" className="border rounded px-3 py-2" />
-        <textarea name="description" required placeholder="Description" className="border rounded px-3 py-2 sm:col-span-2" />
+        <div className="border rounded p-3">
+          <p className="text-sm font-semibold mb-3">Step 2: Product Details</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input name="name" required placeholder="Name" className="border rounded px-3 py-2" />
+            <div className="flex gap-2">
+              <select
+                value={brand}
+                onChange={(event) => setBrand(event.target.value)}
+                className="border rounded px-3 py-2 flex-1"
+                required
+              >
+                <option value="">Select Brand</option>
+                {taxonomies.brands.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <button type="button" className="btn bg-emerald-100 text-primary" onClick={() => openCreateModal("brand")}>+ Brand</button>
+            </div>
 
-        <label className="text-sm flex items-center gap-2"><input type="checkbox" name="trending" /> Trending</label>
-        <label className="text-sm flex items-center gap-2"><input type="checkbox" name="ramadanExclusive" /> Ramadan Exclusive</label>
-        <label className="text-sm flex items-center gap-2"><input type="checkbox" name="bestSell" /> Best Sell</label>
+            <div className="flex gap-2">
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="border rounded px-3 py-2 flex-1"
+                required
+              >
+                <option value="">Select Category</option>
+                {taxonomies.categories.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <button type="button" className="btn bg-emerald-100 text-primary" onClick={() => openCreateModal("category")}>+ Category</button>
+            </div>
 
-        {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
-        <button className="btn-primary sm:col-span-2">Create Product</button>
+            <div className="flex gap-2">
+              <select
+                value={subcategory}
+                onChange={(event) => setSubcategory(event.target.value)}
+                className="border rounded px-3 py-2 flex-1"
+                required
+              >
+                <option value="">Select Subcategory</option>
+                {filteredSubcategories.map((item) => (
+                  <option key={`${item.category}-${item.name}`} value={item.name}>{item.name}</option>
+                ))}
+              </select>
+              <button type="button" className="btn bg-emerald-100 text-primary" onClick={() => openCreateModal("subcategory")}>+ Subcategory</button>
+            </div>
+
+            <textarea name="description" required placeholder="Description" className="border rounded px-3 py-2 sm:col-span-2" />
+          </div>
+        </div>
+
+        <div className="border rounded p-3">
+          <p className="text-sm font-semibold mb-3">Step 3: Pricing, Stock & Flags</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input name="price" type="number" step="0.01" required placeholder="Price" className="border rounded px-3 py-2" />
+            <input name="stock" type="number" required placeholder="Stock" className="border rounded px-3 py-2" />
+            <select name="discountType" className="border rounded px-3 py-2">
+              <option value="">No discount</option>
+              <option value="percentage">Percentage</option>
+              <option value="fixed">Fixed</option>
+            </select>
+            <input name="discountValue" type="number" step="0.01" placeholder="Discount value" className="border rounded px-3 py-2" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+            <label className="text-sm flex items-center gap-2"><input type="checkbox" name="trending" /> Trending</label>
+            <label className="text-sm flex items-center gap-2"><input type="checkbox" name="ramadanExclusive" /> Ramadan Exclusive</label>
+            <label className="text-sm flex items-center gap-2"><input type="checkbox" name="bestSell" /> Best Sell</label>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button disabled={creatingProduct || uploadingImage} className="btn-primary disabled:opacity-50">
+          {creatingProduct ? "Creating..." : uploadingImage ? "Uploading image..." : "Create Product"}
+        </button>
       </form>
 
       <div className="bg-white border border-emerald-100 rounded-xl p-5">
@@ -999,16 +1052,13 @@ export default function AdminProductsPage() {
         <h2 className="text-xl font-bold mb-4">Section Advertisement & Offer Timer</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-          <select
+          <input
             value={sectionAdSection}
             onChange={(event) => setSectionAdSection(event.target.value)}
+            placeholder="Section entry (e.g. Ramadan, Vegetables)"
+            list="section-entry-options"
             className="border rounded px-3 py-2"
-          >
-            <option value="">Select section</option>
-            {taxonomies.categories.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
+          />
 
           <input
             type="datetime-local"
@@ -1023,7 +1073,29 @@ export default function AdminProductsPage() {
             onClick={saveSectionAd}
             disabled={sectionAdSaving || sectionAdUploading}
           >
-            {sectionAdSaving ? "Saving..." : "Save Section Ad"}
+            {sectionAdSaving ? "Saving..." : "Save / Update Section Ad"}
+          </button>
+        </div>
+
+        <datalist id="section-entry-options">
+          {sectionEntryOptions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
+
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-xs text-gray-600">Use section entry to create a new section ad, or click Edit on an existing one.</p>
+          <button
+            type="button"
+            className="btn bg-gray-100 text-gray-700"
+            onClick={() => {
+              setSectionAdSection("");
+              setSectionAdImage("");
+              setSectionAdOfferEndsAt(makeDefaultOfferEnd());
+              setSectionAdError("");
+            }}
+          >
+            Clear Form
           </button>
         </div>
 
@@ -1058,7 +1130,7 @@ export default function AdminProductsPage() {
           {sectionAdImage && (
             <div className="mt-3">
               <p className="text-xs text-gray-500 mb-2">Uploaded: {sectionAdImage}</p>
-              <img src={sectionAdImage} alt="Section ad banner" className="h-24 w-full max-w-md rounded border object-cover" />
+              <NextImage src={sectionAdImage} alt="Section ad banner" width={640} height={96} className="h-24 w-full max-w-md rounded border object-cover" />
             </div>
           )}
         </div>
@@ -1083,9 +1155,9 @@ export default function AdminProductsPage() {
                     setSectionAdImage(item.image);
                   }}
                 >
-                  Edit Time
+                  Edit Section Ad
                 </button>
-                <img src={item.image} alt={item.section} className="h-14 w-28 rounded border object-cover" />
+                <NextImage src={item.image} alt={item.section} width={112} height={56} className="h-14 w-28 rounded border object-cover" />
                 <button type="button" className="btn bg-red-100 text-red-700" onClick={() => removeSectionAd(item.id)}>Delete</button>
               </div>
             </div>
@@ -1259,7 +1331,7 @@ export default function AdminProductsPage() {
                 {editingProduct.image && (
                   <div className="mt-3">
                     <p className="text-xs text-gray-500 mb-2">Current image: {editingProduct.image}</p>
-                    <img src={editingProduct.image} alt="Product preview" className="h-28 w-28 object-cover rounded border" />
+                    <NextImage src={editingProduct.image} alt="Product preview" width={112} height={112} className="h-28 w-28 object-cover rounded border" />
                   </div>
                 )}
               </div>
@@ -1405,7 +1477,7 @@ export default function AdminProductsPage() {
         </div>
         {filteredProducts.map((product) => (
           <div key={product.id} className="grid grid-cols-7 gap-2 p-3 border-t text-sm items-center">
-            <img src={product.image} alt={product.name} className="h-10 w-10 rounded object-cover border" />
+            <NextImage src={product.image} alt={product.name} width={40} height={40} className="h-10 w-10 rounded object-cover border" />
             <p>{product.name}</p>
             <p>{product.category}</p>
             <p>{product.brand}</p>

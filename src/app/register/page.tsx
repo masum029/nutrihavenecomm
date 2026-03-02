@@ -12,25 +12,34 @@ export default function RegisterPage() {
     setLoading(true);
     const formData = new FormData(event.currentTarget);
 
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formData.get("name"),
-        email: formData.get("email"),
-        mobile: formData.get("mobile"),
-        password: formData.get("password"),
-      }),
-    });
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: String(formData.get("name") ?? "").trim(),
+          email: String(formData.get("email") ?? "").trim(),
+          mobile: String(formData.get("mobile") ?? "").trim(),
+          password: String(formData.get("password") ?? "").trim(),
+        }),
+      });
 
-    setLoading(false);
-    if (!response.ok) {
-      const data = await response.json();
-      setError(data.message ?? "Registration failed.");
-      return;
+      if (!response.ok) {
+        try {
+          const data = (await response.json()) as { message?: string };
+          setError(data.message ?? "Registration failed.");
+        } catch {
+          setError("Registration failed.");
+        }
+        return;
+      }
+
+      window.location.href = "/profile?setup=1";
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    window.location.href = "/";
   };
 
   return (

@@ -12,7 +12,14 @@ export async function GET(request: NextRequest) {
           name: user.name,
           email: user.email,
           role: user.role,
+          isActive: user.isActive !== false,
           mobile: user.mobile,
+          address: user.address,
+          city: user.city,
+          state: user.state,
+          country: user.country,
+          postalCode: user.postalCode,
+          profilePicture: user.profilePicture,
         }
       : null,
   });

@@ -46,42 +46,46 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser(request);
-  const roleCheck = requireRole(user, "admin");
-  if (!roleCheck.ok) return fail(roleCheck.message, roleCheck.status);
+  try {
+    const user = await getCurrentUser(request);
+    const roleCheck = requireRole(user, "admin");
+    if (!roleCheck.ok) return fail(roleCheck.message, roleCheck.status);
 
-  const body = (await request.json()) as Record<string, unknown>;
-  const parsed = validateProductInput(body);
-  if (!parsed.ok) return fail(parsed.message, 400);
+    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = validateProductInput(body);
+    if (!parsed.ok) return fail(parsed.message, 400);
 
-  const products = await db.readProducts();
-  const taxonomies = await db.readTaxonomies();
+    const products = await db.readProducts();
+    const taxonomies = await db.readTaxonomies();
 
-  if (!taxonomies.categories.includes(parsed.data.category)) {
-    return fail("Invalid category. Please create/select from taxonomy.", 400);
+    if (!taxonomies.categories.includes(parsed.data.category)) {
+      return fail("Invalid category. Please create/select from taxonomy.", 400);
+    }
+    if (!taxonomies.brands.includes(parsed.data.brand)) {
+      return fail("Invalid brand. Please create/select from taxonomy.", 400);
+    }
+    const subcategoryMatch = taxonomies.subcategories.some(
+      (item) => item.name === parsed.data.subcategory && item.category === parsed.data.category
+    );
+    if (!subcategoryMatch) {
+      return fail("Invalid subcategory for selected category.", 400);
+    }
+
+    const timestamp = nowIso();
+
+    const newProduct = {
+      id: `prd_${Date.now()}`,
+      slug: toSlug(parsed.data.name),
+      ...parsed.data,
+      rating: 0,
+      reviews: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    await db.writeProducts([newProduct, ...products]);
+    return ok(newProduct, 201);
+  } catch {
+    return fail("Unable to create product right now.", 500);
   }
-  if (!taxonomies.brands.includes(parsed.data.brand)) {
-    return fail("Invalid brand. Please create/select from taxonomy.", 400);
-  }
-  const subcategoryMatch = taxonomies.subcategories.some(
-    (item) => item.name === parsed.data.subcategory && item.category === parsed.data.category
-  );
-  if (!subcategoryMatch) {
-    return fail("Invalid subcategory for selected category.", 400);
-  }
-
-  const timestamp = nowIso();
-
-  const newProduct = {
-    id: `prd_${Date.now()}`,
-    slug: toSlug(parsed.data.name),
-    ...parsed.data,
-    rating: 0,
-    reviews: 0,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-
-  await db.writeProducts([newProduct, ...products]);
-  return ok(newProduct, 201);
 }

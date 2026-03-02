@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const guestId = request.cookies.get(GUEST_COOKIE)?.value;
   const orders = await db.readOrders();
 
-  if (user?.role === "admin") {
+  if (user && ["super-admin", "admin", "manager"].includes(user.role)) {
     return ok({ items: orders });
   }
 

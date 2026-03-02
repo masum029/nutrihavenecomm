@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import ProductCard from "@/components/ProductCard";
 import Slider from "@/components/Slider";
@@ -22,7 +23,7 @@ const PER_CHUNK = 6;
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sectionAds, setSectionAds] = useState<SectionAd[]>([]);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
   const [search, setSearch] = useState("");
   const [visibleByCategory, setVisibleByCategory] = useState<Record<string, number>>({});
 
@@ -210,9 +211,11 @@ export default function Home() {
               <div className="mt-5 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl overflow-hidden shadow-md">
                 {sectionAd ? (
                   <>
-                    <img
+                    <Image
                       src={sectionAd.image}
                       alt={`${category} offer`}
+                      width={1600}
+                      height={480}
                       className="w-full h-32 sm:h-40 md:h-48 object-cover"
                     />
                     <div className="px-4 py-3 flex items-center justify-between gap-3">

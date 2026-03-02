@@ -1,4 +1,4 @@
-export type Role = "admin" | "customer";
+export type Role = "super-admin" | "admin" | "manager" | "user" | "customer";
 
 export type DiscountType = "percentage" | "fixed";
 
@@ -35,6 +35,13 @@ export type User = {
   mobile: string;
   passwordHash: string;
   role: Role;
+  isActive?: boolean;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  profilePicture?: string;
   createdAt: string;
 };
 
