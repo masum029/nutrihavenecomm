@@ -21,12 +21,25 @@ export async function storeImageFile(file: File, folder: UploadFolder) {
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (blobToken) {
-    const blob = await put(`${folder}/${fileName}`, file, {
-      access: "public",
-      addRandomSuffix: false,
-      token: blobToken,
-    });
-    return blob.url;
+    try {
+      const blob = await put(`${folder}/${fileName}`, file, {
+        access: "public",
+        addRandomSuffix: false,
+        token: blobToken,
+      });
+      return blob.url;
+    } catch (error) {
+      if (!(error instanceof Error) || !/Cannot use public access on a private store/i.test(error.message)) {
+        throw error;
+      }
+
+      const blob = await put(`${folder}/${fileName}`, file, {
+        access: "private",
+        addRandomSuffix: false,
+        token: blobToken,
+      });
+      return blob.downloadUrl ?? blob.url;
+    }
   }
 
   try {
