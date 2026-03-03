@@ -78,6 +78,10 @@ export default function AdminProductsPage() {
   const [compressionNote, setCompressionNote] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
+  const [uploadStorageReady, setUploadStorageReady] = useState<boolean | null>(null);
+  const [uploadStorageMode, setUploadStorageMode] = useState<string>("");
+  const [uploadStorageMessage, setUploadStorageMessage] = useState("Checking upload storage status...");
+  const isUploadBlocked = uploadStorageReady === false;
 
   const [error, setError] = useState("");
 
@@ -136,11 +140,32 @@ export default function AdminProductsPage() {
     setProducts(data.data.items ?? []);
   }, []);
 
+  const loadUploadStorageHealth = useCallback(async () => {
+    try {
+      const response = await fetch("/api/health/upload-storage", { cache: "no-store" });
+      const body = (await response.json()) as {
+        success?: boolean;
+        message?: string;
+        data?: { mode?: string; ready?: boolean };
+      };
+
+      const ready = typeof body?.data?.ready === "boolean" ? body.data.ready : response.ok;
+      setUploadStorageReady(ready);
+      setUploadStorageMode(body?.data?.mode ?? "");
+      setUploadStorageMessage(body?.message ?? (ready ? "Upload storage is ready." : "Upload storage is not ready."));
+    } catch {
+      setUploadStorageReady(false);
+      setUploadStorageMode("");
+      setUploadStorageMessage("Unable to verify upload storage status right now.");
+    }
+  }, []);
+
   useEffect(() => {
     load();
     loadTaxonomies();
     loadSectionAds();
-  }, [load, loadTaxonomies, loadSectionAds]);
+    loadUploadStorageHealth();
+  }, [load, loadTaxonomies, loadSectionAds, loadUploadStorageHealth]);
 
   useEffect(() => {
     if (!sectionAdSection && taxonomies.categories.length > 0) {
@@ -241,6 +266,12 @@ export default function AdminProductsPage() {
   };
 
   const onImageSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (isUploadBlocked) {
+      setUploadError(uploadStorageMessage || "Upload storage is not ready.");
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -377,6 +408,12 @@ export default function AdminProductsPage() {
   const onDropImage = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragOver(false);
+
+    if (isUploadBlocked) {
+      setUploadError(uploadStorageMessage || "Upload storage is not ready.");
+      return;
+    }
+
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
     await uploadImage(file);
@@ -452,6 +489,12 @@ export default function AdminProductsPage() {
   };
 
   const onEditImageSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (isUploadBlocked) {
+      setEditUploadError(uploadStorageMessage || "Upload storage is not ready.");
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
     await uploadEditImage(file);
@@ -460,6 +503,12 @@ export default function AdminProductsPage() {
   const onEditDropImage = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setEditIsDragOver(false);
+
+    if (isUploadBlocked) {
+      setEditUploadError(uploadStorageMessage || "Upload storage is not ready.");
+      return;
+    }
+
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
     await uploadEditImage(file);
@@ -676,6 +725,12 @@ export default function AdminProductsPage() {
   };
 
   const onSectionAdImageSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (isUploadBlocked) {
+      setSectionAdUploadError(uploadStorageMessage || "Upload storage is not ready.");
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
     await uploadSectionAdImage(file);
@@ -779,6 +834,20 @@ export default function AdminProductsPage() {
     <div className="max-w-7xl mx-auto px-4 py-10 space-y-8">
       <h1 className="text-3xl font-bold">Admin Product Management</h1>
 
+      <div
+        className={`rounded-lg border px-4 py-3 text-sm ${
+          uploadStorageReady === null
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : uploadStorageReady
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+        }`}
+      >
+        <p className="font-semibold">Upload Storage Status</p>
+        <p>{uploadStorageMessage}</p>
+        {uploadStorageMode && <p className="text-xs mt-1">Mode: {uploadStorageMode}</p>}
+      </div>
+
       <form onSubmit={createProduct} className="bg-white border border-emerald-100 rounded-xl p-5 space-y-4">
         <div className="sm:col-span-2 border rounded p-3">
           <p className="text-sm font-semibold mb-1">Step 1: Upload Product Image</p>
@@ -789,20 +858,24 @@ export default function AdminProductsPage() {
 
           <div
             onDragOver={(event) => {
+              if (isUploadBlocked) return;
               event.preventDefault();
               setIsDragOver(true);
             }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={onDropImage}
             className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-              isDragOver ? "border-primary bg-emerald-50" : "border-emerald-200"
+              isUploadBlocked ? "border-gray-200 bg-gray-50 opacity-60" : isDragOver ? "border-primary bg-emerald-50" : "border-emerald-200"
             }`}
           >
-            <p className="text-sm text-gray-700 mb-2">Drag & drop image here or select file</p>
+            <p className="text-sm text-gray-700 mb-2">
+              {isUploadBlocked ? "Upload is disabled until storage is ready." : "Drag & drop image here or select file"}
+            </p>
             <input
               type="file"
               accept="image/*"
               onChange={onImageSelect}
+              disabled={isUploadBlocked}
               className="w-full border rounded px-3 py-2"
             />
           </div>
@@ -899,7 +972,7 @@ export default function AdminProductsPage() {
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button disabled={creatingProduct || uploadingImage} className="btn-primary disabled:opacity-50">
+        <button disabled={creatingProduct || uploadingImage || isUploadBlocked} className="btn-primary disabled:opacity-50">
           {creatingProduct ? "Creating..." : uploadingImage ? "Uploading image..." : "Create Product"}
         </button>
       </form>
@@ -1029,6 +1102,7 @@ export default function AdminProductsPage() {
             type="file"
             accept="image/*"
             onChange={onSectionAdImageSelect}
+            disabled={isUploadBlocked}
             className="w-full border rounded px-3 py-2"
           />
 
@@ -1214,20 +1288,24 @@ export default function AdminProductsPage() {
 
                 <div
                   onDragOver={(event) => {
+                    if (isUploadBlocked) return;
                     event.preventDefault();
                     setEditIsDragOver(true);
                   }}
                   onDragLeave={() => setEditIsDragOver(false)}
                   onDrop={onEditDropImage}
                   className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                    editIsDragOver ? "border-primary bg-emerald-50" : "border-emerald-200"
+                    isUploadBlocked ? "border-gray-200 bg-gray-50 opacity-60" : editIsDragOver ? "border-primary bg-emerald-50" : "border-emerald-200"
                   }`}
                 >
-                  <p className="text-sm text-gray-700 mb-2">Drag & drop image here or select file</p>
+                  <p className="text-sm text-gray-700 mb-2">
+                    {isUploadBlocked ? "Upload is disabled until storage is ready." : "Drag & drop image here or select file"}
+                  </p>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={onEditImageSelect}
+                    disabled={isUploadBlocked}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>

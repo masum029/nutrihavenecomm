@@ -1,8 +1,8 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { getCurrentUser, requireRole } from "@/lib/guards";
 import { fail, ok } from "@/lib/http";
+import { storeImageFile } from "@/lib/upload-storage";
 
 export const runtime = "nodejs";
 
@@ -40,15 +40,8 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = extFromName(file.name) || ".jpg";
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(path.join(uploadDir, safeName), buffer);
-
-    const url = `/uploads/products/${safeName}`;
+    const renamedFile = new File([await file.arrayBuffer()], `upload${ext}`, { type: file.type });
+    const url = await storeImageFile(renamedFile, "products");
     return ok({ url }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected upload error.";
