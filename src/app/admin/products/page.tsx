@@ -33,8 +33,8 @@ const initialModalState: ModalState = {
   newCategory: "",
 };
 
-const MIN_IMAGE_WIDTH = 1200;
-const MIN_IMAGE_HEIGHT = 1200;
+const STANDARD_IMAGE_QUALITY = 0.8;
+const STANDARD_IMAGE_MAX_DIMENSION = 1600;
 
 const makeDefaultOfferEnd = () => {
   const date = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
@@ -76,9 +76,6 @@ export default function AdminProductsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
   const [compressionNote, setCompressionNote] = useState("");
-  const [useCompression, setUseCompression] = useState(true);
-  const [compressionQuality, setCompressionQuality] = useState(0.8);
-  const [maxDimension, setMaxDimension] = useState(1600);
   const [isDragOver, setIsDragOver] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
 
@@ -270,7 +267,7 @@ export default function AdminProductsPage() {
 
       const width = image.width;
       const height = image.height;
-      const scale = Math.min(1, maxDimension / Math.max(width, height));
+      const scale = Math.min(1, STANDARD_IMAGE_MAX_DIMENSION / Math.max(width, height));
       const targetWidth = Math.max(1, Math.round(width * scale));
       const targetHeight = Math.max(1, Math.round(height * scale));
 
@@ -291,7 +288,7 @@ export default function AdminProductsPage() {
             : "image/jpeg";
 
       const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve, outputType, compressionQuality);
+        canvas.toBlob(resolve, outputType, STANDARD_IMAGE_QUALITY);
       });
 
       if (!blob) throw new Error("Compression failed.");
@@ -299,29 +296,6 @@ export default function AdminProductsPage() {
       const extension = outputType === "image/png" ? "png" : outputType === "image/webp" ? "webp" : "jpg";
       const fileName = file.name.replace(/\.[^.]+$/, "") + `.${extension}`;
       return new File([blob], fileName, { type: outputType });
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  };
-
-  const validateMinResolution = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      throw new Error("Please select a valid image file.");
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-
-    try {
-      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("Failed to read image dimensions."));
-        img.src = objectUrl;
-      });
-
-      if (image.width < MIN_IMAGE_WIDTH || image.height < MIN_IMAGE_HEIGHT) {
-        throw new Error(`Minimum image size is ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}px.`);
-      }
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
@@ -338,26 +312,15 @@ export default function AdminProductsPage() {
     setUploadingImage(true);
     setUploadProgress(0);
 
-    try {
-      await validateMinResolution(file);
-    } catch (error) {
-      setUploadingImage(false);
-      setUploadProgress(0);
-      setUploadError(error instanceof Error ? error.message : "Image resolution is too low.");
-      return;
-    }
-
     let fileToUpload = file;
-    if (useCompression) {
-      try {
-        const compressed = await compressImageOnClient(file);
-        fileToUpload = compressed;
-        const originalKb = (file.size / 1024).toFixed(1);
-        const compressedKb = (compressed.size / 1024).toFixed(1);
-        setCompressionNote(`Compressed on client: ${originalKb}KB → ${compressedKb}KB`);
-      } catch {
-        setCompressionNote("Compression skipped due to processing issue.");
-      }
+    try {
+      const compressed = await compressImageOnClient(file);
+      fileToUpload = compressed;
+      const originalKb = (file.size / 1024).toFixed(1);
+      const compressedKb = (compressed.size / 1024).toFixed(1);
+      setCompressionNote(`Standardized upload: ${originalKb}KB → ${compressedKb}KB (max ${STANDARD_IMAGE_MAX_DIMENSION}px, ${Math.round(STANDARD_IMAGE_QUALITY * 100)}% quality)`);
+    } catch {
+      setCompressionNote("Standard image optimization skipped due to processing issue.");
     }
 
     const data = new FormData();
@@ -430,26 +393,15 @@ export default function AdminProductsPage() {
     setEditUploadingImage(true);
     setEditUploadProgress(0);
 
-    try {
-      await validateMinResolution(file);
-    } catch (error) {
-      setEditUploadingImage(false);
-      setEditUploadProgress(0);
-      setEditUploadError(error instanceof Error ? error.message : "Image resolution is too low.");
-      return;
-    }
-
     let fileToUpload = file;
-    if (useCompression) {
-      try {
-        const compressed = await compressImageOnClient(file);
-        fileToUpload = compressed;
-        const originalKb = (file.size / 1024).toFixed(1);
-        const compressedKb = (compressed.size / 1024).toFixed(1);
-        setEditCompressionNote(`Compressed on client: ${originalKb}KB → ${compressedKb}KB`);
-      } catch {
-        setEditCompressionNote("Compression skipped due to processing issue.");
-      }
+    try {
+      const compressed = await compressImageOnClient(file);
+      fileToUpload = compressed;
+      const originalKb = (file.size / 1024).toFixed(1);
+      const compressedKb = (compressed.size / 1024).toFixed(1);
+      setEditCompressionNote(`Standardized upload: ${originalKb}KB → ${compressedKb}KB (max ${STANDARD_IMAGE_MAX_DIMENSION}px, ${Math.round(STANDARD_IMAGE_QUALITY * 100)}% quality)`);
+    } catch {
+      setEditCompressionNote("Standard image optimization skipped due to processing issue.");
     }
 
     const data = new FormData();
@@ -830,46 +782,10 @@ export default function AdminProductsPage() {
       <form onSubmit={createProduct} className="bg-white border border-emerald-100 rounded-xl p-5 space-y-4">
         <div className="sm:col-span-2 border rounded p-3">
           <p className="text-sm font-semibold mb-1">Step 1: Upload Product Image</p>
-          <p className="text-xs text-gray-500 mb-3">Minimum resolution: {MIN_IMAGE_WIDTH}x{MIN_IMAGE_HEIGHT}px</p>
-
-          <div className="mb-3 p-3 border rounded bg-gray-50 space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={useCompression}
-                onChange={(event) => setUseCompression(event.target.checked)}
-              />
-              Compress image on client before upload
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="text-xs text-gray-600">
-                Quality: {Math.round(compressionQuality * 100)}%
-                <input
-                  type="range"
-                  min={0.4}
-                  max={1}
-                  step={0.05}
-                  value={compressionQuality}
-                  onChange={(event) => setCompressionQuality(Number(event.target.value))}
-                  disabled={!useCompression}
-                  className="w-full"
-                />
-              </label>
-              <label className="text-xs text-gray-600">
-                Max dimension (px)
-                <input
-                  type="number"
-                  min={400}
-                  max={4000}
-                  step={100}
-                  value={maxDimension}
-                  onChange={(event) => setMaxDimension(Number(event.target.value) || 1600)}
-                  disabled={!useCompression}
-                  className="w-full border rounded px-2 py-1 mt-1"
-                />
-              </label>
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            No minimum resolution required. Images are auto-optimized to standard quality ({Math.round(STANDARD_IMAGE_QUALITY * 100)}%)
+            and max {STANDARD_IMAGE_MAX_DIMENSION}px during upload.
+          </p>
 
           <div
             onDragOver={(event) => {
