@@ -1,0 +1,29 @@
+[
+  {
+    "id": "user_admin_1",
+    "name": "Admin User",
+    "email": "admin@nutriheaven.com",
+    "mobile": "+8801700000000",
+    "passwordHash": "e86f78a8a3caf0b60d8e74e5942aa6d86dc150cd3c03338aef25b7d2d7e3acc7",
+    "role": "admin",
+    "createdAt": "2026-02-25T00:00:00.000Z"
+  },
+  {
+    "id": "user_customer_1",
+    "name": "Customer User",
+    "email": "customer@nutriheaven.com",
+    "mobile": "+8801800000000",
+    "passwordHash": "98ec654a8df28f8f0f8f02220483d46916b85017de0b74d8ec755c28cb8539a8",
+    "role": "customer",
+    "createdAt": "2026-02-25T00:00:00.000Z"
+  },
+  {
+    "id": "usr_1772010398358_laxr4w5e",
+    "name": "MD Al Masum",
+    "email": "masum06aiub@gmail.com",
+    "mobile": "01766070988",
+    "passwordHash": "fa9304349b9d8b93e5010a67a2f78bf1f174c2678d266316d82fb6a59926771c",
+    "role": "customer",
+    "createdAt": "2026-02-25T09:06:38.358Z"
+  }
+]
