@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
 
     await db.writeProducts([newProduct, ...products]);
     return ok(newProduct, 201);
-  } catch {
-    return fail("Unable to create product right now.", 500);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unexpected server error.";
+    return fail(`Unable to create product right now: ${message}`, 500);
   }
 }

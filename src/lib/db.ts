@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { kv } from "@vercel/kv";
 import type { Cart, Order, Product, SectionAd, SliderImage, TaxonomyStore, User } from "@/types";
 
 const dataPath = (fileName: string) => path.join(process.cwd(), "src", "data", fileName);
@@ -13,25 +14,65 @@ async function writeJson<T>(fileName: string, data: T): Promise<void> {
   await fs.writeFile(dataPath(fileName), JSON.stringify(data, null, 2), "utf-8");
 }
 
+const KV_KEYS = {
+  products: "nutriheaven:products",
+  users: "nutriheaven:users",
+  carts: "nutriheaven:carts",
+  orders: "nutriheaven:orders",
+  taxonomies: "nutriheaven:taxonomies",
+  sliderImages: "nutriheaven:slider-images",
+  sectionAds: "nutriheaven:section-ads",
+} as const;
+
+const isKvConfigured = () => Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+
+async function readStore<T>(key: string, fileName: string): Promise<T> {
+  if (!isKvConfigured()) {
+    return readJson<T>(fileName);
+  }
+
+  const existing = await kv.get<T>(key);
+  if (existing !== null && existing !== undefined) {
+    return existing;
+  }
+
+  const seed = await readJson<T>(fileName);
+  await kv.set(key, seed);
+  return seed;
+}
+
+async function writeStore<T>(key: string, fileName: string, data: T): Promise<void> {
+  if (isKvConfigured()) {
+    await kv.set(key, data);
+    return;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Persistent data store is not configured. Set KV_REST_API_URL and KV_REST_API_TOKEN.");
+  }
+
+  await writeJson(fileName, data);
+}
+
 export const db = {
-  readProducts: () => readJson<Product[]>("products.json"),
-  writeProducts: (products: Product[]) => writeJson("products.json", products),
+  readProducts: () => readStore<Product[]>(KV_KEYS.products, "products.json"),
+  writeProducts: (products: Product[]) => writeStore(KV_KEYS.products, "products.json", products),
 
-  readUsers: () => readJson<User[]>("users.json"),
-  writeUsers: (users: User[]) => writeJson("users.json", users),
+  readUsers: () => readStore<User[]>(KV_KEYS.users, "users.json"),
+  writeUsers: (users: User[]) => writeStore(KV_KEYS.users, "users.json", users),
 
-  readCarts: () => readJson<Cart[]>("carts.json"),
-  writeCarts: (carts: Cart[]) => writeJson("carts.json", carts),
+  readCarts: () => readStore<Cart[]>(KV_KEYS.carts, "carts.json"),
+  writeCarts: (carts: Cart[]) => writeStore(KV_KEYS.carts, "carts.json", carts),
 
-  readOrders: () => readJson<Order[]>("orders.json"),
-  writeOrders: (orders: Order[]) => writeJson("orders.json", orders),
+  readOrders: () => readStore<Order[]>(KV_KEYS.orders, "orders.json"),
+  writeOrders: (orders: Order[]) => writeStore(KV_KEYS.orders, "orders.json", orders),
 
-  readTaxonomies: () => readJson<TaxonomyStore>("taxonomies.json"),
-  writeTaxonomies: (taxonomies: TaxonomyStore) => writeJson("taxonomies.json", taxonomies),
+  readTaxonomies: () => readStore<TaxonomyStore>(KV_KEYS.taxonomies, "taxonomies.json"),
+  writeTaxonomies: (taxonomies: TaxonomyStore) => writeStore(KV_KEYS.taxonomies, "taxonomies.json", taxonomies),
 
-  readSliderImages: () => readJson<SliderImage[]>("slider-images.json"),
-  writeSliderImages: (items: SliderImage[]) => writeJson("slider-images.json", items),
+  readSliderImages: () => readStore<SliderImage[]>(KV_KEYS.sliderImages, "slider-images.json"),
+  writeSliderImages: (items: SliderImage[]) => writeStore(KV_KEYS.sliderImages, "slider-images.json", items),
 
-  readSectionAds: () => readJson<SectionAd[]>("section-ads.json"),
-  writeSectionAds: (items: SectionAd[]) => writeJson("section-ads.json", items),
+  readSectionAds: () => readStore<SectionAd[]>(KV_KEYS.sectionAds, "section-ads.json"),
+  writeSectionAds: (items: SectionAd[]) => writeStore(KV_KEYS.sectionAds, "section-ads.json", items),
 };
