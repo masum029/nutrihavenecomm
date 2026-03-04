@@ -72,6 +72,7 @@ export default function AdminProductsPage() {
   const [subcategory, setSubcategory] = useState("");
   const [brand, setBrand] = useState("");
   const [imagePath, setImagePath] = useState("");
+  const [manualImageUrl, setManualImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
@@ -213,8 +214,9 @@ export default function AdminProductsPage() {
       return;
     }
 
-    if (!imagePath) {
-      setError("Please upload a product image first.");
+    const finalImagePath = imagePath || manualImageUrl.trim();
+    if (!finalImagePath) {
+      setError("Please upload an image or provide a valid image URL.");
       return;
     }
 
@@ -227,7 +229,7 @@ export default function AdminProductsPage() {
       category,
       subcategory,
       brand,
-      image: imagePath,
+      image: finalImagePath,
       price: Number(formData.get("price")),
       stock: Number(formData.get("stock")),
       discountType: formData.get("discountType") || undefined,
@@ -254,6 +256,7 @@ export default function AdminProductsPage() {
 
       form.reset();
       setImagePath("");
+      setManualImageUrl("");
       setUploadError("");
       setUploadProgress(0);
       setCompressionNote("");
@@ -856,6 +859,23 @@ export default function AdminProductsPage() {
             and max {STANDARD_IMAGE_MAX_DIMENSION}px during upload.
           </p>
 
+          <div className="mb-3">
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Or paste image URL</label>
+            <input
+              type="url"
+              value={manualImageUrl}
+              onChange={(event) => {
+                setManualImageUrl(event.target.value);
+                if (event.target.value.trim()) {
+                  setImagePath("");
+                  setUploadError("");
+                }
+              }}
+              placeholder="https://example.com/product-image.jpg"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
           <div
             onDragOver={(event) => {
               if (isUploadBlocked) return;
@@ -891,10 +911,16 @@ export default function AdminProductsPage() {
 
           {uploadError && <p className="text-sm text-red-600 mt-2">{uploadError}</p>}
           {compressionNote && <p className="text-sm text-emerald-700 mt-2">{compressionNote}</p>}
-          {imagePath && (
+          {(imagePath || manualImageUrl.trim()) && (
             <div className="mt-3">
-              <p className="text-xs text-gray-500 mb-2">Uploaded: {imagePath}</p>
-              <NextImage src={imagePath} alt="Uploaded product" width={112} height={112} className="h-28 w-28 object-cover rounded border" />
+              <p className="text-xs text-gray-500 mb-2">Selected image: {imagePath || manualImageUrl.trim()}</p>
+              <NextImage
+                src={imagePath || manualImageUrl.trim()}
+                alt="Selected product"
+                width={112}
+                height={112}
+                className="h-28 w-28 object-cover rounded border"
+              />
             </div>
           )}
         </div>
@@ -972,7 +998,7 @@ export default function AdminProductsPage() {
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button disabled={creatingProduct || uploadingImage || isUploadBlocked} className="btn-primary disabled:opacity-50">
+        <button disabled={creatingProduct || uploadingImage} className="btn-primary disabled:opacity-50">
           {creatingProduct ? "Creating..." : uploadingImage ? "Uploading image..." : "Create Product"}
         </button>
       </form>
