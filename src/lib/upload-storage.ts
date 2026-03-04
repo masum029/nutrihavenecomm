@@ -15,19 +15,30 @@ const isReadOnlyFsError = (error: unknown) => {
   return /EROFS|read-only file system/i.test(error.message);
 };
 
+const getBlobAccessMode = () => (process.env.BLOB_STORE_ACCESS === "private" ? "private" : "public");
+const getUploadStorageMode = () => {
+  const mode = process.env.UPLOAD_STORAGE_MODE?.toLowerCase();
+  if (mode === "local") return "local";
+  if (mode === "blob") return "blob";
+  return "auto";
+};
+
 export async function storeImageFile(file: File, folder: UploadFolder) {
   const ext = path.extname(file.name).toLowerCase() || ".jpg";
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
 
+  const uploadStorageMode = getUploadStorageMode();
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (blobToken) {
+  if ((uploadStorageMode === "blob" || uploadStorageMode === "auto") && blobToken) {
+    const blobAccessMode = getBlobAccessMode();
+
     try {
       const blob = await put(`${folder}/${fileName}`, file, {
-        access: "public",
+        access: blobAccessMode,
         addRandomSuffix: false,
         token: blobToken,
       });
-      return blob.url;
+      return blobAccessMode === "public" ? blob.url : blob.downloadUrl ?? blob.url;
     } catch (error) {
       if (!(error instanceof Error) || !/Cannot use public access on a private store/i.test(error.message)) {
         throw error;
@@ -40,6 +51,10 @@ export async function storeImageFile(file: File, folder: UploadFolder) {
       });
       return blob.downloadUrl ?? blob.url;
     }
+  }
+
+  if (uploadStorageMode === "blob" && !blobToken) {
+    throw new Error("UPLOAD_STORAGE_MODE is set to blob, but BLOB_READ_WRITE_TOKEN is missing.");
   }
 
   try {
@@ -59,12 +74,25 @@ export async function storeImageFile(file: File, folder: UploadFolder) {
 }
 
 export async function getUploadStorageHealth(): Promise<UploadStorageHealth> {
+  const uploadStorageMode = getUploadStorageMode();
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (blobToken) {
+  if ((uploadStorageMode === "blob" || uploadStorageMode === "auto") && blobToken) {
+    const blobAccessMode = getBlobAccessMode();
     return {
       ready: true,
       mode: "blob",
-      message: "Uploads are configured to use Vercel Blob storage.",
+      message:
+        blobAccessMode === "public"
+          ? "Uploads are configured to use Vercel Blob storage (public mode)."
+          : "Uploads are configured to use Vercel Blob storage (private mode).",
+    };
+  }
+
+  if (uploadStorageMode === "blob" && !blobToken) {
+    return {
+      ready: false,
+      mode: "blob",
+      message: "UPLOAD_STORAGE_MODE is blob, but BLOB_READ_WRITE_TOKEN is missing.",
     };
   }
 

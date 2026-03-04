@@ -24,7 +24,15 @@ const KV_KEYS = {
   sectionAds: "nutriheaven:section-ads",
 } as const;
 
-const isKvConfigured = () => Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const getKvEnv = () => ({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const isKvConfigured = () => {
+  const { url, token } = getKvEnv();
+  return Boolean(url && token);
+};
 
 async function readStore<T>(key: string, fileName: string): Promise<T> {
   if (!isKvConfigured()) {
@@ -48,7 +56,9 @@ async function writeStore<T>(key: string, fileName: string, data: T): Promise<vo
   }
 
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Persistent data store is not configured. Set KV_REST_API_URL and KV_REST_API_TOKEN.");
+    throw new Error(
+      "Persistent data store is not configured. Set KV_REST_API_URL + KV_REST_API_TOKEN or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN.",
+    );
   }
 
   await writeJson(fileName, data);
